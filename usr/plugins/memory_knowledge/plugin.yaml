@@ -1,0 +1,10 @@
+name: memory_knowledge
+title: Memory Knowledge
+description: Autonomous Supabase-backed memory retrieval and persistence for Agent Zero.
+version: 0.1.0
+settings_sections:
+  - agent
+  - developer
+per_project_config: true
+per_agent_config: true
+always_enabled: false

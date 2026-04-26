@@ -1,0 +1,41 @@
+database:
+  url_env: MEMORY_DATABASE_URL
+  fallback_url_env:
+    - SUPABASE_DB_URL
+    - DATABASE_URL
+memory:
+  tenant_id_env: MEMORY_TENANT_ID
+  tenant_id: ""
+  agent_key_env: MEMORY_AGENT_KEY
+  agent_key: agent0:zero
+  plugin_key_env: MEMORY_PLUGIN_KEY
+  plugin_key: local.memory-knowledge
+  plugin_version: 0.1.0
+retrieval:
+  enabled: true
+  use_text_search: true
+  use_vector_search: false
+  default_limit: 10
+  similarity_threshold: 0.7
+  allowed_kinds:
+    - episodic
+    - semantic
+    - procedural
+    - preference
+    - profile
+    - artifact
+    - graph
+  inject_heading: Relevant memory
+  max_summary_chars: 1800
+writes:
+  enabled: true
+  record_conversation: true
+  upsert_working_memory: true
+  extract_candidates: true
+  auto_promote: false
+  min_candidate_confidence: 0.75
+  require_evidence: true
+  store_injected_memory: false
+maintenance:
+  expire_working_on_start: false
+  archive_invalid_on_start: false

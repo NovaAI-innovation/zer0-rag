@@ -1,0 +1,50 @@
+<div x-data>
+  <template x-if="$store.pluginSettingsPrototype">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium">Database URL environment variable</label>
+        <input class="input w-full" x-model="config.database.url_env" placeholder="MEMORY_DATABASE_URL">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Tenant ID</label>
+        <input class="input w-full" x-model="config.memory.tenant_id" placeholder="Use MEMORY_TENANT_ID when blank">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Agent key</label>
+        <input class="input w-full" x-model="config.memory.agent_key" placeholder="agent0:zero">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Plugin key</label>
+        <input class="input w-full" x-model="config.memory.plugin_key" placeholder="local.memory-knowledge">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" x-model="config.retrieval.enabled">
+          <span>Autonomous retrieval</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" x-model="config.writes.enabled">
+          <span>Autonomous writes</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" x-model="config.writes.extract_candidates">
+          <span>Candidate extraction</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" x-model="config.writes.auto_promote">
+          <span>Auto promote</span>
+        </label>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium">Retrieval limit</label>
+          <input class="input w-full" type="number" min="1" max="200" x-model.number="config.retrieval.default_limit">
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Similarity threshold</label>
+          <input class="input w-full" type="number" min="0" max="1" step="0.01" x-model.number="config.retrieval.similarity_threshold">
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
