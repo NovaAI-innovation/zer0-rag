@@ -1,1 +1,1 @@
-"""Agent Zero Memory Knowledge plugin."""
+"""Agent Zero plugin for the Supabase memory schema."""

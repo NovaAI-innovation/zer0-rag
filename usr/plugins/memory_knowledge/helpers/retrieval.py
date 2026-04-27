@@ -1,88 +1,66 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 from usr.plugins.memory_knowledge.helpers import db
+from usr.plugins.memory_knowledge.helpers.recorder import latest_user_text
 from usr.plugins.memory_knowledge.helpers.runtime import MemoryRuntime
 
 
-def latest_text(agent: Any, kwargs: dict[str, Any]) -> str:
-    for key in ("message", "prompt", "input", "user_message", "content"):
-        value = kwargs.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    history = getattr(agent, "history", None) or getattr(agent, "messages", None)
-    if isinstance(history, list):
-        for item in reversed(history):
-            if isinstance(item, dict) and item.get("role") == "user" and item.get("content"):
-                return str(item["content"]).strip()
-    return ""
-
-
-async def retrieve_for_turn(agent: Any, runtime: MemoryRuntime, kwargs: dict[str, Any]) -> list[dict[str, Any]]:
-    query = latest_text(agent, kwargs)
+def retrieve_for_turn(agent: Any, runtime: MemoryRuntime, kwargs: Mapping[str, Any]) -> list[dict[str, Any]]:
+    query = latest_user_text(agent, kwargs)
     if not query:
         return []
-
-    limit = runtime.max_context_items or runtime.settings.default_limit
-    kinds = runtime.allowed_kinds
-    results: list[dict[str, Any]] = []
-
-    embedding = kwargs.get("embedding") or kwargs.get("query_embedding")
-    if embedding:
-        try:
-            results.extend(db.search_vector(runtime.settings, embedding, limit, runtime.settings.similarity_threshold, kinds))
-        except Exception as exc:
-            db.log_diagnostic(runtime.settings, "warning", "retrieval", "vector_search_failed", str(exc))
-
-    try:
-        results.extend(db.search_text(runtime.settings, query, limit, kinds))
-    except Exception as exc:
-        db.log_diagnostic(runtime.settings, "warning", "retrieval", "text_search_failed", str(exc))
-
+    rows = db.search_memory(runtime.settings, query, limit=runtime.settings.default_limit, include_inactive=False)
     deduped: dict[str, dict[str, Any]] = {}
-    for row in results:
-        memory_id = str(row.get("memory_item_id"))
-        if memory_id not in deduped:
-            deduped[memory_id] = row
-    return list(deduped.values())[:limit]
+    for row in rows:
+        key = str(row.get("id") or row.get("memory_item_id"))
+        deduped.setdefault(key, row)
+    result = list(deduped.values())[: runtime.settings.default_limit]
+    if runtime.settings.auto_reinforce_memories:
+        try:
+            db.record_memory_access(
+                runtime.settings,
+                [str(row.get("id") or row.get("memory_item_id")) for row in result if row.get("id") or row.get("memory_item_id")],
+                reason="retrieved_for_turn",
+            )
+        except Exception:
+            pass
+    return result
 
 
-def format_memory_block(memories: list[dict[str, Any]], max_chars: int) -> str:
-    if not memories:
+def format_memory_block(rows: list[dict[str, Any]], max_chars: int) -> str:
+    if not rows:
         return ""
     lines = ["Relevant memory:"]
-    for memory in memories:
-        kind = memory.get("kind", "memory")
-        confidence = memory.get("confidence")
-        suffix = f", confidence {float(confidence):.2f}" if confidence is not None else ""
-        summary = str(memory.get("summary") or memory.get("title") or "").replace("\n", " ").strip()
-        if not summary:
-            continue
-        lines.append(f"- [{kind}{suffix}] {summary}")
+    for row in rows:
+        memory_id = str(row.get("id") or row.get("memory_item_id") or "")
+        kind = row.get("kind") or "memory"
+        summary = str(row.get("summary") or row.get("title") or "").replace("\n", " ").strip()
+        if summary:
+            lines.append(f"- [{kind} {memory_id[:8]}] {summary}")
     block = "\n".join(lines)
     if len(block) > max_chars:
-        block = block[: max_chars - 3].rstrip() + "..."
+        return block[: max(0, max_chars - 3)].rstrip() + "..."
     return block
 
 
-def inject_memory_block(agent: Any, runtime: MemoryRuntime, kwargs: dict[str, Any], memories: list[dict[str, Any]]) -> str:
-    block = format_memory_block(memories, runtime.settings.max_summary_chars)
+def inject_memory_block(agent: Any, runtime: MemoryRuntime, kwargs: dict[str, Any], rows: list[dict[str, Any]]) -> str:
+    if not runtime.settings.inject_context:
+        return ""
+    block = format_memory_block(rows, runtime.settings.max_context_chars)
     runtime.injected_memory_block = block
+    runtime.injected_memory_ids = [str(row.get("id") or row.get("memory_item_id")) for row in rows if row.get("id") or row.get("memory_item_id")]
     if not block:
         return ""
-
     for key in ("system_prompt", "prompt", "message"):
         value = kwargs.get(key)
         if isinstance(value, str):
             kwargs[key] = f"{value}\n\n{block}"
             return block
-
     prompts = kwargs.get("prompts")
     if isinstance(prompts, list):
         prompts.append(block)
-    elif hasattr(agent, "memory_context"):
-        agent.memory_context = f"{getattr(agent, 'memory_context')}\n\n{block}".strip()
-    else:
-        setattr(agent, "memory_context", block)
+        return block
+    setattr(agent, "memory_context", f"{getattr(agent, 'memory_context', '')}\n\n{block}".strip())
     return block

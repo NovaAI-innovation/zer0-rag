@@ -1,7 +1,0 @@
-/.codex
-.env
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.supabase/
-supabase/.temp/

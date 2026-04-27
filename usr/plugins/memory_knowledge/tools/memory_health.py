@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from helpers.tool import Response, Tool
+
 from usr.plugins.memory_knowledge.helpers import db
-from usr.plugins.memory_knowledge.helpers.runtime import ensure_runtime
+from usr.plugins.memory_knowledge.helpers.runtime import settings_for_agent
 
 
 class MemoryHealth(Tool):
+    """Check database connectivity and memory schema readiness."""
+
     async def execute(self, **kwargs):
-        runtime = ensure_runtime(self.agent)
-        settings = runtime.settings if runtime else db.load_settings()
-        return Response(message=db.dump_json(db.health(settings)), break_loop=False)
+        try:
+            settings = settings_for_agent(getattr(self, "agent", None))
+            return Response(message=db.dump_json(db.health(settings)), break_loop=False)
+        except Exception as exc:
+            return Response(message=db.dump_json({"ok": False, "error": str(exc)}), break_loop=False)

@@ -1,1 +1,1 @@
-"""Shared helpers for the Memory Knowledge plugin."""
+"""Shared helpers for the memory_knowledge plugin."""

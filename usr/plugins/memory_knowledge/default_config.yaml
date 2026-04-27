@@ -1,41 +1,87 @@
+auth:
+  mode: data_api
+supabase:
+  url: https://ufgbtyrdwngayrrutfdz.supabase.co
+  url_env: SUPABASE_URL
+  service_role_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmZ2J0eXJkd25nYXlycnV0ZmR6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzE3MzY5MSwiZXhwIjoyMDkyNzQ5NjkxfQ.NoTHFvjtEvNUhOZ4eKdG7NwvuhP6dJcpsIGZv7EA7PA"
+  service_role_key_env: SUPABASE_SERVICE_ROLE_KEY
 database:
+  url: ""
   url_env: MEMORY_DATABASE_URL
+  project_ref: ufgbtyrdwngayrrutfdz
   fallback_url_env:
     - SUPABASE_DB_URL
     - DATABASE_URL
 memory:
   tenant_id_env: MEMORY_TENANT_ID
   tenant_id: ""
+  tenant_slug_env: MEMORY_TENANT_SLUG
+  tenant_slug: agent-zero
+  tenant_display_name: Agent Zero
   agent_key_env: MEMORY_AGENT_KEY
   agent_key: agent0:zero
-  plugin_key_env: MEMORY_PLUGIN_KEY
-  plugin_key: local.memory-knowledge
-  plugin_version: 0.1.0
-retrieval:
-  enabled: true
-  use_text_search: true
-  use_vector_search: false
+  agent_display_name: Agent Zero
+query:
   default_limit: 10
-  similarity_threshold: 0.7
-  allowed_kinds:
-    - episodic
-    - semantic
-    - procedural
-    - preference
-    - profile
-    - artifact
-    - graph
-  inject_heading: Relevant memory
-  max_summary_chars: 1800
+  max_limit: 50
+  include_inactive: false
 writes:
   enabled: true
-  record_conversation: true
-  upsert_working_memory: true
-  extract_candidates: true
-  auto_promote: false
-  min_candidate_confidence: 0.75
-  require_evidence: true
-  store_injected_memory: false
-maintenance:
-  expire_working_on_start: false
-  archive_invalid_on_start: false
+  default_status: active
+  auto_create_tenant: true
+  auto_create_subjects: true
+  max_body_chars: 20000
+  max_document_chars: 100000
+llm_enrichment:
+  enabled: true
+  provider: xai
+  base_url: https://api.x.ai/v1
+  api_key_env: XAI_API_KEY
+  model: grok-4-1-fast-non-reasoning
+  timeout_seconds: 45
+  batch_size: 12
+llm_subject_enrichment:
+  enabled: true
+  model: grok-3-mini
+  timeout_seconds: 20
+  max_tags: 6
+embeddings:
+  enabled: true
+  model: sentence-transformers/all-MiniLM-L6-v2
+  timeout_seconds: 20
+  hash_fallback: true
+lifecycle:
+  enabled: true
+  record_run_history: true
+  record_messages: true
+  record_steps: true
+  record_thoughts: true
+  record_tool_calls: true
+  inject_context: true
+  extract_memories: true
+  auto_episodic_memories: true
+  auto_promote_memories: true
+  auto_reinforce_memories: true
+  auto_subjects: true
+  auto_knowledge_from_tools: true
+  max_context_chars: 1800
+  min_memory_confidence: 0.65
+  min_promotion_confidence: 0.65
+  memory_access_confidence_delta: 0.01
+  memory_evidence_confidence_delta: 0.08
+  memory_repeat_confidence_delta: 0.10
+  memory_correction_confidence_delta: -0.20
+  memory_access_min_interval_minutes: 60
+  min_knowledge_chars: 1200
+  min_tool_response_chars: 1200
+  memory_cues:
+    - remember
+    - prefer
+    - preference
+    - always
+    - never
+    - this project
+    - this repo
+    - workflow
+    - procedure
+    - convention

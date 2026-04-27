@@ -1,50 +1,489 @@
-<div x-data>
-  <template x-if="$store.pluginSettingsPrototype">
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium">Database URL environment variable</label>
-        <input class="input w-full" x-model="config.database.url_env" placeholder="MEMORY_DATABASE_URL">
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Tenant ID</label>
-        <input class="input w-full" x-model="config.memory.tenant_id" placeholder="Use MEMORY_TENANT_ID when blank">
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Agent key</label>
-        <input class="input w-full" x-model="config.memory.agent_key" placeholder="agent0:zero">
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Plugin key</label>
-        <input class="input w-full" x-model="config.memory.plugin_key" placeholder="local.memory-knowledge">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <label class="flex items-center gap-2">
-          <input type="checkbox" x-model="config.retrieval.enabled">
-          <span>Autonomous retrieval</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input type="checkbox" x-model="config.writes.enabled">
-          <span>Autonomous writes</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input type="checkbox" x-model="config.writes.extract_candidates">
-          <span>Candidate extraction</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input type="checkbox" x-model="config.writes.auto_promote">
-          <span>Auto promote</span>
-        </label>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium">Retrieval limit</label>
-          <input class="input w-full" type="number" min="1" max="200" x-model.number="config.retrieval.default_limit">
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Similarity threshold</label>
-          <input class="input w-full" type="number" min="0" max="1" step="0.01" x-model.number="config.retrieval.similarity_threshold">
-        </div>
+<html>
+<head>
+  <title>Memory Knowledge Settings</title>
+  <script type="module">
+    import { store } from "/components/plugins/plugin-settings-store.js";
+  </script>
+  <style>
+    :root {
+      --mk-ink: #16201b;
+      --mk-muted: #66736d;
+      --mk-line: #d9e1dd;
+      --mk-field: #f8faf8;
+      --mk-panel: #ffffff;
+      --mk-soft: #eef4f1;
+      --mk-accent: #176b56;
+      --mk-accent-2: #b7791f;
+      --mk-focus: rgba(23, 107, 86, 0.18);
+    }
+
+    .mk-config {
+      color: var(--mk-ink);
+      container-type: inline-size;
+    }
+
+    .mk-shell {
+      display: grid;
+      gap: 14px;
+    }
+
+    .mk-header {
+      border: 1px solid var(--mk-line);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(23, 107, 86, 0.10), transparent 46%),
+        linear-gradient(180deg, #fbfdfb, #f2f7f4);
+      padding: 14px 16px;
+      box-shadow: 0 1px 0 rgba(22, 32, 27, 0.04);
+    }
+
+    .mk-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .mk-subtitle {
+      margin: 3px 0 0;
+      color: var(--mk-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .mk-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .mk-card {
+      border: 1px solid var(--mk-line);
+      border-radius: 8px;
+      background: var(--mk-panel);
+      overflow: hidden;
+      box-shadow: 0 1px 0 rgba(22, 32, 27, 0.04);
+    }
+
+    .mk-card-wide {
+      grid-column: 1 / -1;
+    }
+
+    .mk-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 40px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--mk-line);
+      background: var(--mk-soft);
+    }
+
+    .mk-card h3 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .mk-chip {
+      border: 1px solid rgba(23, 107, 86, 0.22);
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: var(--mk-accent);
+      background: rgba(23, 107, 86, 0.08);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .mk-body {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .mk-field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      color: var(--mk-muted);
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.35;
+    }
+
+    .mk-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mk-toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .mk-toggle {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid var(--mk-line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: #fbfcfb;
+      color: var(--mk-ink);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .mk-toggle input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--mk-accent);
+    }
+
+    .mk-input,
+    .mk-select {
+      width: 100%;
+      min-width: 0;
+      min-height: 34px;
+      border: 1px solid var(--mk-line);
+      border-radius: 7px;
+      background: var(--mk-field);
+      color: var(--mk-ink);
+      padding: 7px 9px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .mk-input:focus,
+    .mk-select:focus {
+      border-color: var(--mk-accent);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px var(--mk-focus);
+    }
+
+    .mk-input::placeholder {
+      color: #9aa7a1;
+    }
+
+    .mk-divider {
+      height: 1px;
+      background: var(--mk-line);
+      margin: 2px 0;
+    }
+
+    .mk-note {
+      color: var(--mk-muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    @container (max-width: 760px) {
+      .mk-grid,
+      .mk-row,
+      .mk-toggle-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div x-data class="mk-config">
+    <div class="mk-shell">
+      <header class="mk-header">
+        <h2 class="mk-title">Memory Knowledge</h2>
+        <p class="mk-subtitle">Connection, retrieval, lifecycle capture, and confidence automation settings.</p>
+      </header>
+
+      <div class="mk-grid">
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Connection</h3>
+            <span class="mk-chip">Auth</span>
+          </div>
+          <div class="mk-body">
+            <label class="mk-field">
+              Mode
+              <select class="mk-select input" x-model="config.auth.mode">
+                <option value="data_api">data_api</option>
+                <option value="postgres">postgres</option>
+              </select>
+            </label>
+            <label class="mk-field">
+              Supabase URL
+              <input class="mk-input input" x-model="config.supabase.url" placeholder="https://project-ref.supabase.co" />
+            </label>
+            <label class="mk-field">
+              Service role key
+              <input class="mk-input input" type="password" x-model="config.supabase.service_role_key" placeholder="Prefer env var below" />
+            </label>
+            <label class="mk-field">
+              Service role key env var
+              <input class="mk-input input" x-model="config.supabase.service_role_key_env" placeholder="SUPABASE_SERVICE_ROLE_KEY" />
+            </label>
+          </div>
+        </section>
+
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Database</h3>
+            <span class="mk-chip">Tenant</span>
+          </div>
+          <div class="mk-body">
+            <label class="mk-field">
+              Database URL
+              <input class="mk-input input" x-model="config.database.url" placeholder="postgresql://..." />
+            </label>
+            <label class="mk-field">
+              URL env var
+              <input class="mk-input input" x-model="config.database.url_env" placeholder="MEMORY_DATABASE_URL" />
+            </label>
+            <div class="mk-divider"></div>
+            <label class="mk-field">
+              Tenant ID
+              <input class="mk-input input" x-model="config.memory.tenant_id" placeholder="Optional UUID" />
+            </label>
+            <div class="mk-row">
+              <label class="mk-field">
+                Tenant slug
+                <input class="mk-input input" x-model="config.memory.tenant_slug" placeholder="agent-zero" />
+              </label>
+              <label class="mk-field">
+                Agent key
+                <input class="mk-input input" x-model="config.memory.agent_key" placeholder="agent0:zero" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Query</h3>
+            <span class="mk-chip">Retrieval</span>
+          </div>
+          <div class="mk-body">
+            <div class="mk-row">
+              <label class="mk-field">
+                Default limit
+                <input class="mk-input input" type="number" min="1" max="200" x-model.number="config.query.default_limit" />
+              </label>
+              <label class="mk-field">
+                Max limit
+                <input class="mk-input input" type="number" min="1" max="200" x-model.number="config.query.max_limit" />
+              </label>
+            </div>
+            <label class="mk-toggle">
+              <input type="checkbox" x-model="config.query.include_inactive" />
+              <span>Include inactive records by default</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Writes</h3>
+            <span class="mk-chip">Storage</span>
+          </div>
+          <div class="mk-body">
+            <div class="mk-toggle-grid">
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.writes.enabled" />
+                <span>Enable writes</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.writes.auto_create_tenant" />
+                <span>Auto-create tenant</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.writes.auto_create_subjects" />
+                <span>Auto-create subjects</span>
+              </label>
+            </div>
+            <label class="mk-field">
+              Default memory status
+              <select class="mk-select input" x-model="config.writes.default_status">
+                <option value="candidate">candidate</option>
+                <option value="active">active</option>
+                <option value="superseded">superseded</option>
+                <option value="rejected">rejected</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="mk-card mk-card-wide">
+          <div class="mk-card-head">
+            <h3>Lifecycle</h3>
+            <span class="mk-chip">Automation</span>
+          </div>
+          <div class="mk-body">
+            <div class="mk-toggle-grid">
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.enabled" />
+                <span>Enable lifecycle hooks</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.record_run_history" />
+                <span>Record runs</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.record_messages" />
+                <span>Record messages</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.record_steps" />
+                <span>Record steps</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.record_thoughts" />
+                <span>Record monologue thoughts</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.record_tool_calls" />
+                <span>Record tool calls</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.inject_context" />
+                <span>Inject retrieved context</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.extract_memories" />
+                <span>Extract candidate memories</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.auto_episodic_memories" />
+                <span>Create episodic turn memories</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.auto_promote_memories" />
+                <span>Auto-promote eligible memories</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.auto_reinforce_memories" />
+                <span>Adjust confidence from usage</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.auto_subjects" />
+                <span>Upsert detected subjects</span>
+              </label>
+              <label class="mk-toggle">
+                <input type="checkbox" x-model="config.lifecycle.auto_knowledge_from_tools" />
+                <span>Store substantial tool output as knowledge</span>
+              </label>
+            </div>
+
+            <div class="mk-divider"></div>
+
+            <div class="mk-row">
+              <label class="mk-field">
+                Max context chars
+                <input class="mk-input input" type="number" min="200" max="10000" x-model.number="config.lifecycle.max_context_chars" />
+              </label>
+              <label class="mk-field">
+                Min knowledge chars
+                <input class="mk-input input" type="number" min="200" max="50000" x-model.number="config.lifecycle.min_knowledge_chars" />
+              </label>
+              <label class="mk-field">
+                Tool parsing threshold chars
+                <input class="mk-input input" type="number" min="200" max="50000" x-model.number="config.lifecycle.min_tool_response_chars" />
+              </label>
+              <label class="mk-field">
+                Min promotion confidence
+                <input class="mk-input input" type="number" min="0" max="1" step="0.01" x-model.number="config.lifecycle.min_promotion_confidence" />
+              </label>
+              <label class="mk-field">
+                Retrieval confidence delta
+                <input class="mk-input input" type="number" min="0" max="0.2" step="0.01" x-model.number="config.lifecycle.memory_access_confidence_delta" />
+              </label>
+              <label class="mk-field">
+                Evidence confidence delta
+                <input class="mk-input input" type="number" min="0" max="0.5" step="0.01" x-model.number="config.lifecycle.memory_evidence_confidence_delta" />
+              </label>
+              <label class="mk-field">
+                Repeat confidence delta
+                <input class="mk-input input" type="number" min="0" max="0.5" step="0.01" x-model.number="config.lifecycle.memory_repeat_confidence_delta" />
+              </label>
+              <label class="mk-field">
+                Correction confidence delta
+                <input class="mk-input input" type="number" min="-1" max="0" step="0.01" x-model.number="config.lifecycle.memory_correction_confidence_delta" />
+              </label>
+              <label class="mk-field">
+                Access update interval minutes
+                <input class="mk-input input" type="number" min="0" max="10080" step="1" x-model.number="config.lifecycle.memory_access_min_interval_minutes" />
+              </label>
+            </div>
+
+            <p class="mk-note">Confidence adjustments are throttled by the access update interval and only apply when lifecycle reinforcement is enabled.</p>
+          </div>
+        </section>
+
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Subject LLM</h3>
+            <span class="mk-chip">Per-item</span>
+          </div>
+          <div class="mk-body">
+            <label class="mk-toggle">
+              <input type="checkbox" x-model="config.llm_subject_enrichment.enabled" />
+              <span>Infer subjects and summaries on each memory write</span>
+            </label>
+            <label class="mk-field">
+              Model
+              <input class="mk-input input" x-model="config.llm_subject_enrichment.model" placeholder="grok-3-mini" />
+            </label>
+            <div class="mk-row">
+              <label class="mk-field">
+                Timeout seconds
+                <input class="mk-input input" type="number" min="5" max="120" x-model.number="config.llm_subject_enrichment.timeout_seconds" />
+              </label>
+              <label class="mk-field">
+                Max subject tags
+                <input class="mk-input input" type="number" min="1" max="12" x-model.number="config.llm_subject_enrichment.max_tags" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="mk-card">
+          <div class="mk-card-head">
+            <h3>Embeddings</h3>
+            <span class="mk-chip">Vectors</span>
+          </div>
+          <div class="mk-body">
+            <label class="mk-toggle">
+              <input type="checkbox" x-model="config.embeddings.enabled" />
+              <span>Auto-generate embeddings when missing</span>
+            </label>
+            <label class="mk-toggle">
+              <input type="checkbox" x-model="config.embeddings.hash_fallback" />
+              <span>Use deterministic hash fallback when API embedding fails</span>
+            </label>
+            <div class="mk-row">
+              <label class="mk-field">
+                Model
+                <input class="mk-input input" x-model="config.embeddings.model" placeholder="sentence-transformers/all-MiniLM-L6-v2" />
+              </label>
+              <label class="mk-field">
+                Timeout seconds
+                <input class="mk-input input" type="number" min="5" max="120" x-model.number="config.embeddings.timeout_seconds" />
+              </label>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
-  </template>
-</div>
+  </div>
+</body>
+</html>

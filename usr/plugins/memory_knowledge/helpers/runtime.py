@@ -1,66 +1,64 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Mapping
 
 from usr.plugins.memory_knowledge.helpers import db
 
 
+PLUGIN_NAME = "memory_knowledge"
+
+
 @dataclass
 class MemoryRuntime:
-    settings: db.MemorySettings
-    context: dict[str, Any] | None
+    settings: db.Settings
     enabled: bool = True
-    can_read: bool = False
-    can_write: bool = False
-    can_promote: bool = False
-    allowed_kinds: list[str] | None = None
-    denied_tags: list[str] = field(default_factory=list)
-    max_context_items: int = 10
-    trace_run_id: str | None = None
-    external_thread_id: str | None = None
+    run_id: str | None = None
+    run_key: str | None = None
+    thread_key: str | None = None
+    turn_index: int = 0
+    step_index: int = 0
+    thought_index: int = 0
     response_chunks: list[str] = field(default_factory=list)
+    pending_response_thoughts: list[str] = field(default_factory=list)
+    pending_response_envelope: str = ""
+    recorded_thought_keys: set[str] = field(default_factory=set)
+    last_message_ids: dict[str, str] = field(default_factory=dict)
+    injected_memory_ids: list[str] = field(default_factory=list)
     injected_memory_block: str = ""
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-def _plugin_config(agent: Any) -> dict[str, Any]:
-    try:
-        from helpers.plugins import get_plugin_config
-    except Exception:
-        return {}
-    try:
-        return get_plugin_config("memory_knowledge", agent=agent) or {}
-    except TypeError:
-        return get_plugin_config("memory_knowledge") or {}
-    except Exception:
-        return {}
-
-
-async def load_memory_runtime(agent: Any) -> MemoryRuntime:
-    settings = db.load_settings(_plugin_config(agent))
-    try:
-        context = db.load_context(settings)
-    except Exception as exc:
-        runtime = MemoryRuntime(settings=settings, context=None, enabled=False)
+def settings_for_agent(agent: Any | None = None, fallback: Mapping[str, Any] | None = None) -> db.Settings:
+    config: Mapping[str, Any] | None = fallback
+    if agent is not None:
         try:
-            db.log_diagnostic(settings, "warning", "memory", "context_load_failed", str(exc), "Check database URL and memory seed rows.")
+            from helpers.plugins import get_plugin_config
+
+            config = get_plugin_config(PLUGIN_NAME, agent=agent) or fallback
         except Exception:
-            pass
-        return runtime
+            config = fallback
+    return db.load_settings(config)
 
-    runtime = MemoryRuntime(settings=settings, context=context)
-    if not context:
-        runtime.enabled = False
-        return runtime
 
-    runtime.can_read = bool(context.get("can_read")) and settings.retrieval_enabled
-    runtime.can_write = bool(context.get("can_write")) and settings.writes_enabled
-    runtime.can_promote = bool(context.get("can_promote")) and settings.auto_promote
-    runtime.allowed_kinds = list(context.get("allowed_memory_kinds") or [])
-    runtime.denied_tags = list(context.get("denied_tags") or [])
-    runtime.max_context_items = min(int(context.get("max_context_items") or settings.default_limit), settings.default_limit)
+def load_memory_runtime(agent: Any | None = None) -> MemoryRuntime:
+    settings = settings_for_agent(agent)
+    runtime = MemoryRuntime(settings=settings, enabled=settings.lifecycle_enabled)
+    if agent is not None:
+        setattr(agent, "memory_knowledge", runtime)
     return runtime
 
 
-def ensure_runtime(agent: Any) -> MemoryRuntime | None:
-    return getattr(agent, "memory_knowledge", None)
+def ensure_runtime(agent: Any | None = None) -> MemoryRuntime | None:
+    runtime = getattr(agent, "memory_knowledge", None) if agent is not None else None
+    if runtime is not None:
+        return runtime
+    try:
+        settings = settings_for_agent(agent)
+    except Exception:
+        return None
+    runtime = MemoryRuntime(settings=settings, enabled=settings.lifecycle_enabled)
+    if agent is not None:
+        setattr(agent, "memory_knowledge", runtime)
+    return runtime
